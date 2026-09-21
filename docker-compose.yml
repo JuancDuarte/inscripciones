@@ -1,0 +1,15 @@
+services:
+  inscripciones-db:
+    image: postgres:16
+    container_name: inscripciones-db
+    environment:
+      POSTGRES_DB: inscripciones_db
+      POSTGRES_USER: inscripciones_user
+      POSTGRES_PASSWORD: inscripciones-pass
+    ports:
+      - "5434:5432"
+    volumes:
+      - inscripciones_data:/var/lib/postgresql/data
+
+volumes:
+  inscripciones_data:
