@@ -64,6 +64,15 @@ public class GlobalExceptionHandler {
             .build();
     return ResponseEntity.badRequest().body(error);
 }
+@ExceptionHandler(ParametrosInvalidos.class)
+public ResponseEntity<ErrorResponse> handleParametrosInvalidos(ParametrosInvalidos ex) {
+    ErrorResponse error = ErrorResponse.builder()
+            .status(HttpStatus.BAD_REQUEST.value())
+            .mensaje(ex.getMessage())
+            .timestamp(LocalDateTime.now())
+            .build();
+    return ResponseEntity.badRequest().body(error);
+}
 }
 
 

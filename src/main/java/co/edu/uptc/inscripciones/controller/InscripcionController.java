@@ -1,5 +1,7 @@
 package co.edu.uptc.inscripciones.controller;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import org.springframework.data.domain.Page;
@@ -23,6 +25,7 @@ import co.edu.uptc.inscripciones.dto.request.CambiarEstadoRequestDTO;
 import co.edu.uptc.inscripciones.dto.request.InscripcionRequestDTO;
 import co.edu.uptc.inscripciones.dto.response.InscripcionResponseDTO;
 import co.edu.uptc.inscripciones.dto.response.PageResponseDTO;
+import co.edu.uptc.inscripciones.exception.ParametrosInvalidos;
 import co.edu.uptc.inscripciones.mapper.InscripcionMapper;
 import co.edu.uptc.inscripciones.model.EstadoInscripcion;
 import co.edu.uptc.inscripciones.model.Inscripcion;
@@ -44,34 +47,31 @@ public class InscripcionController {
     private static final Set<String> CAMPOS_ORDENABLES = Set.of(
             "idInscripcion", "estudianteId", "cursoId", "periodo", "estado", "fechaInscripcion"
     );
- @GetMapping
- @Operation (summary = "Listar inscripciones", description = "Permite listar las inscripciones con paginación, ordenamiento y filtros opcionales")
-    public ResponseEntity<PageResponseDTO<InscripcionResponseDTO>> listar(
-            @RequestParam(defaultValue = "0") int pageNumber,
-            @RequestParam(defaultValue = "20") int pageSize,
-            @RequestParam(defaultValue = "fechaInscripcion") String sortBy,
-            @RequestParam(defaultValue = "desc") String sortDirection,
-            @RequestParam(required = false) Long estudianteId,
-            @RequestParam(required = false) Long cursoId,
-            @RequestParam(required = false) EstadoInscripcion estado,
-            @RequestParam(required = false) String periodo
-    ) {
-        if (pageSize != 10 && pageSize != 20 && pageSize != 50) pageSize = 20;
-        if (!CAMPOS_ORDENABLES.contains(sortBy)) sortBy = "fechaInscripcion";
+@GetMapping
+public ResponseEntity<PageResponseDTO<InscripcionResponseDTO>> listar(
+        @RequestParam(defaultValue = "0") int pageNumber,
+        @RequestParam(defaultValue = "20") int pageSize,
+        @RequestParam(defaultValue = "fechaInscripcion") String sortBy,
+        @RequestParam(defaultValue = "desc") String sortDirection,
+        @RequestParam(required = false) Long estudianteId,
+        @RequestParam(required = false) Long cursoId,
+        @RequestParam(required = false) EstadoInscripcion estado,
+        @RequestParam(required = false) String periodo
+) {
+    if (pageSize != 10 && pageSize != 20 && pageSize != 50) pageSize = 20;
 
-        Sort sort = Sort.by(
-                sortDirection.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC, sortBy);
-        PageRequest pageable = PageRequest.of(pageNumber, pageSize, sort);
+    Sort sort = construirSort(sortBy, sortDirection); // 👈 reemplaza la lógica de un solo campo
+    PageRequest pageable = PageRequest.of(pageNumber, pageSize, sort);
 
-        Specification<Inscripcion> spec = Specification
-                .where(InscripcionSpecifications.porEstudianteId(estudianteId))
-                .and(InscripcionSpecifications.porCursoId(cursoId))
-                .and(InscripcionSpecifications.porEstado(estado))
-                .and(InscripcionSpecifications.porPeriodo(periodo));
+    Specification<Inscripcion> spec = Specification
+            .where(InscripcionSpecifications.porEstudianteId(estudianteId))
+            .and(InscripcionSpecifications.porCursoId(cursoId))
+            .and(InscripcionSpecifications.porEstado(estado))
+            .and(InscripcionSpecifications.porPeriodo(periodo));
 
-        Page<InscripcionResponseDTO> resultado = inscripcionService.listar(spec, pageable);
-        return ResponseEntity.ok(PageResponseDTO.from(resultado));
-    }
+    Page<InscripcionResponseDTO> resultado = inscripcionService.listar(spec, pageable);
+    return ResponseEntity.ok(PageResponseDTO.from(resultado));
+}
 
     @GetMapping("/{id}")
     @Operation (summary = "Obtener inscripción por ID", description = "Permite obtener una inscripción específica por su ID")
@@ -105,4 +105,35 @@ public class InscripcionController {
         inscripcionService.eliminar(id);
         return ResponseEntity.noContent().build();
     }
+    private Sort construirSort(String sortBy, String sortDirection) {
+    String[] campos = sortBy.split(",");
+    String[] direcciones = sortDirection.split(",");
+
+    if (campos.length != direcciones.length) {
+        throw new ParametrosInvalidos(
+            "La cantidad de campos en sortBy (" + campos.length +
+            ") no coincide con la cantidad en sortDirection (" + direcciones.length + ")"
+        );
+    }
+
+    List<Sort.Order> ordenes = new ArrayList<>();
+    for (int i = 0; i < campos.length; i++) {
+        String campo = campos[i].trim();
+        String direccion = direcciones[i].trim();
+
+        if (!CAMPOS_ORDENABLES.contains(campo)) {
+            throw new ParametrosInvalidos("Campo de ordenamiento inválido: '" + campo + "'");
+        }
+        if (!direccion.equalsIgnoreCase("asc") && !direccion.equalsIgnoreCase("desc")) {
+            throw new ParametrosInvalidos(
+                "Dirección de ordenamiento inválida: '" + direccion + "' (use 'asc' o 'desc')"
+            );
+        }
+
+        Sort.Direction dir = direccion.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        ordenes.add(new Sort.Order(dir, campo));
+    }
+
+    return Sort.by(ordenes);
+}
 }
