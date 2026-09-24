@@ -57,8 +57,8 @@ Ajusta `server.port` en `application.yml` si tu equipo acordó otros puertos par
 
 ## 4. Documentación / pruebas (Swagger)
 
-- Swagger UI: `http://localhost:8083/swagger-ui.html`
-- Contrato OpenAPI (JSON): `http://localhost:8083/v3/api-docs`
+- Swagger UI: `http://localhost:8082/swagger-ui.html`
+- Contrato OpenAPI (JSON): `http://localhost:8082/v3/api-docs`
 
 Desde Swagger UI puedes usar "Try it out" para probar cada endpoint sin leer el código fuente. Hay 3 grupos de endpoints (Inscripciones, Notas, Historial de Estado), todos bajo el prefijo `/api/inscripciones`, que es el que el Gateway enruta hacia este servicio.
 
