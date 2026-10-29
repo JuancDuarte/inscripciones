@@ -3,13 +3,44 @@ services:
     image: postgres:16
     container_name: inscripciones-db
     environment:
-      POSTGRES_DB: inscripciones_db
-      POSTGRES_USER: inscripciones_user
-      POSTGRES_PASSWORD: inscripciones-pass
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5434:5432"
     volumes:
       - inscripciones_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [back]
+
+  inscripciones:
+    build: .
+    image: inscripciones:1.0
+    container_name: inscripc
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://inscripciones-db:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      inscripciones-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    networks: [back]
+
+networks:
+  back: {}
 
 volumes:
-  inscripciones_data:
+  inscripciones_data: {}
