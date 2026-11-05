@@ -73,6 +73,20 @@ public ResponseEntity<ErrorResponse> handleParametrosInvalidos(ParametrosInvalid
             .build();
     return ResponseEntity.badRequest().body(error);
 }
+
+/**
+ * El estudiante ya tiene una inscripción vigente en el mismo curso y periodo.
+ * Se devuelve 409 para que el frontend muestre el mensaje exacto del conflicto.
+ */
+@ExceptionHandler(InscripcionDuplicadaException.class)
+public ResponseEntity<ErrorResponse> handleDuplicada(InscripcionDuplicadaException ex) {
+    ErrorResponse error = ErrorResponse.builder()
+            .status(HttpStatus.CONFLICT.value())
+            .mensaje(ex.getMessage())
+            .timestamp(LocalDateTime.now())
+            .build();
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+}
 }
 
 

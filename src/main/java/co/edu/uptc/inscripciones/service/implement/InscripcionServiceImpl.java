@@ -1,5 +1,6 @@
 package co.edu.uptc.inscripciones.service.implement;
 import java.time.LocalDate;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -9,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import co.edu.uptc.inscripciones.dto.request.InscripcionRequestDTO;
 import co.edu.uptc.inscripciones.dto.response.InscripcionResponseDTO;
+import co.edu.uptc.inscripciones.exception.InscripcionDuplicadaException;
 import co.edu.uptc.inscripciones.exception.RecursoNoEncontradoException;
 import co.edu.uptc.inscripciones.mapper.InscripcionMapper;
 import co.edu.uptc.inscripciones.model.EstadoInscripcion;
@@ -42,6 +44,16 @@ public class InscripcionServiceImpl implements InscripcionService {
     @Override
     @Transactional // 👈 escritura, sobreescribe el readOnly de la clase
     public InscripcionResponseDTO crear(InscripcionRequestDTO dto) {
+        // No permitir dos inscripciones vigentes del mismo estudiante en el mismo curso y periodo.
+        if (inscripcionRepository.existsByEstudianteIdAndCursoIdAndPeriodoAndEstadoIn(
+                dto.getEstudianteId(), dto.getCursoId(), dto.getPeriodo(),
+                List.of(EstadoInscripcion.ACTIVA, EstadoInscripcion.FINALIZADA))) {
+            throw new InscripcionDuplicadaException(
+                    "Ya existe una inscripción vigente del estudiante " + dto.getEstudianteId()
+                            + " en el curso " + dto.getCursoId()
+                            + " para el periodo " + dto.getPeriodo());
+        }
+
         Inscripcion inscripcion = mapper.toEntity(dto);
         inscripcion.setFechaInscripcion(LocalDate.now());
         if (inscripcion.getEstado() == null) inscripcion.setEstado(EstadoInscripcion.ACTIVA);
