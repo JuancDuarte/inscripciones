@@ -9,7 +9,8 @@ import lombok.Setter;
 
 @Getter @Setter @Builder 
 public class ErrorResponse {
-     private int status;
+    private int status;
+    private String codigo; // ej. SIN_CUPO, YA_INSCRITO, ESTUDIANTE_INACTIVO
     private String mensaje;
     private LocalDateTime timestamp;
     private Map<String, String> errores; // solo se usa en errores de validación

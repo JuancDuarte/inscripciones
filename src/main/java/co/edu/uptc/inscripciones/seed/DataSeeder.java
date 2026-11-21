@@ -1,9 +1,13 @@
 package co.edu.uptc.inscripciones.seed;
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import co.edu.uptc.inscripciones.model.EstadoInscripcion;
@@ -13,23 +17,43 @@ import co.edu.uptc.inscripciones.repository.InscripcionRepository;
 import lombok.RequiredArgsConstructor;
 import net.datafaker.Faker;
 
-@Component 
-@RequiredArgsConstructor 
+/**
+ * Datos de ejemplo cuando la tabla está vacía. Genera pares (estudiante, curso)
+ * ÚNICOS para respetar la restricción uq_insc. Se puede apagar con
+ * SEED_INSCRIPCIONES=false (por ejemplo, cuando el simulador puebla la base).
+ */
+@Component
+@Order(10)
+@RequiredArgsConstructor
 public class DataSeeder implements CommandLineRunner {
-private final InscripcionRepository inscripcionRepository;
+
+    private static final int TOTAL = 300;
+
+    private final InscripcionRepository inscripcionRepository;
+
+    @Value("${seed.inscripciones:true}")
+    private boolean habilitado;
 
     @Override
     public void run(String... args) {
-        if (inscripcionRepository.count() > 0) return;
+        if (!habilitado || inscripcionRepository.count() > 0) return;
 
+        @SuppressWarnings("deprecation")
         Faker faker = new Faker(new Locale("es"));
         EstadoInscripcion[] estados = EstadoInscripcion.values();
         String[] periodos = {"2025-1", "2025-2", "2026-1", "2026-2"};
+        Set<String> usados = new HashSet<>();
 
-        for (int i = 0; i < 1000; i++) {
+        int creadas = 0;
+        int intentos = 0;
+        while (creadas < TOTAL && intentos++ < TOTAL * 10) {
+            long estudianteId = faker.number().numberBetween(1, 20);
+            long cursoId = faker.number().numberBetween(1, 30);
+            if (!usados.add(estudianteId + "-" + cursoId)) continue;
+
             Inscripcion inscripcion = Inscripcion.builder()
-                    .estudianteId((long) faker.number().numberBetween(1, 20))
-                    .cursoId((long) faker.number().numberBetween(1, 30))
+                    .estudianteId(estudianteId)
+                    .cursoId(cursoId)
                     .periodo(periodos[faker.number().numberBetween(0, periodos.length)])
                     .estado(estados[faker.number().numberBetween(0, estados.length)])
                     .fechaInscripcion(LocalDate.now().minusDays(faker.number().numberBetween(1, 365)))
@@ -44,6 +68,7 @@ private final InscripcionRepository inscripcionRepository;
             inscripcion.getNotas().add(nota);
 
             inscripcionRepository.save(inscripcion);
+            creadas++;
         }
     }
 }

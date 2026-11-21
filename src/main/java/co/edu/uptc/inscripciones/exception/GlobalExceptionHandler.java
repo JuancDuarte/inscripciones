@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.springframework.data.jpa.domain.Specification;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -27,6 +27,40 @@ public class GlobalExceptionHandler {
                 .timestamp(LocalDateTime.now())
                 .build();
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    // 409: sin cupo / ya inscrito
+    @ExceptionHandler(ConflictoException.class)
+    public ResponseEntity<ErrorResponse> handleConflicto(ConflictoException ex) {
+        return respuesta(HttpStatus.CONFLICT, ex.getCodigo(), ex.getMessage());
+    }
+
+    // 409: la base rechazó un duplicado (restricción uq_insc)
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleIntegridad(DataIntegrityViolationException ex) {
+        return respuesta(HttpStatus.CONFLICT, "CONFLICTO", "La operación viola una restricción de la base de datos");
+    }
+
+    // 422: estudiante/curso inexistente o INACTIVO
+    @ExceptionHandler(ReglaNegocioException.class)
+    public ResponseEntity<ErrorResponse> handleReglaNegocio(ReglaNegocioException ex) {
+        return respuesta(HttpStatus.UNPROCESSABLE_ENTITY, ex.getCodigo(), ex.getMessage());
+    }
+
+    // 503: otro módulo no responde (nunca 500)
+    @ExceptionHandler(ServicioNoDisponibleException.class)
+    public ResponseEntity<ErrorResponse> handleNoDisponible(ServicioNoDisponibleException ex) {
+        return respuesta(HttpStatus.SERVICE_UNAVAILABLE, "MODULO_NO_DISPONIBLE", ex.getMessage());
+    }
+
+    private ResponseEntity<ErrorResponse> respuesta(HttpStatus status, String codigo, String mensaje) {
+        ErrorResponse error = ErrorResponse.builder()
+                .status(status.value())
+                .codigo(codigo)
+                .mensaje(mensaje)
+                .timestamp(LocalDateTime.now())
+                .build();
+        return ResponseEntity.status(status).body(error);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

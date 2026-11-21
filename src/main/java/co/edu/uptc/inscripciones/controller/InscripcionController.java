@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,6 +32,7 @@ import co.edu.uptc.inscripciones.model.EstadoInscripcion;
 import co.edu.uptc.inscripciones.model.Inscripcion;
 import co.edu.uptc.inscripciones.repository.InscripcionSpecifications;
 import co.edu.uptc.inscripciones.service.InscripcionService;
+import co.edu.uptc.inscripciones.service.ResultadoCreacion;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -80,9 +82,17 @@ public ResponseEntity<PageResponseDTO<InscripcionResponseDTO>> listar(
     }
 
     @PostMapping
-    @Operation (summary = "Crear inscripción", description = "Permite crear una nueva inscripción")
-    public ResponseEntity<InscripcionResponseDTO> crear(@Valid @RequestBody InscripcionRequestDTO dto) {
-    return ResponseEntity.status(HttpStatus.CREATED).body(inscripcionService.crear(dto));
+    @Operation (summary = "Crear inscripción",
+            description = "Valida estudiante ACTIVO y reserva el cupo de forma atómica. 201 creada, "
+                    + "409 sin cupo o ya inscrito, 422 estudiante/curso inexistente o INACTIVO, 503 módulo caído. "
+                    + "Con Idempotency-Key, una repetición devuelve la inscripción anterior sin crear otra.")
+    public ResponseEntity<InscripcionResponseDTO> crear(
+            @Valid @RequestBody InscripcionRequestDTO dto,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        ResultadoCreacion resultado = inscripcionService.crear(dto, idempotencyKey);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .header("Idempotent-Replayed", String.valueOf(resultado.repetida()))
+                .body(resultado.inscripcion());
     }
 
     @PutMapping("/{id}")
@@ -100,7 +110,7 @@ public ResponseEntity<PageResponseDTO<InscripcionResponseDTO>> listar(
     }
 
     @DeleteMapping("/{id}")
-    @Operation (summary = "Eliminar inscripción", description = "Permite eliminar una inscripción existente")
+    @Operation (summary = "Cancelar inscripción", description = "Borrado lógico: la inscripción queda CANCELADA y se libera el cupo")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         inscripcionService.eliminar(id);
         return ResponseEntity.noContent().build();
