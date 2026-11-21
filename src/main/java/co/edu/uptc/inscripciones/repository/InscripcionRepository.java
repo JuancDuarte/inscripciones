@@ -31,4 +31,11 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long>,
             """)
     int reactivar(@Param("id") Long id, @Param("periodo") String periodo,
                   @Param("desde") Collection<EstadoInscripcion> desde);
+
+    /**
+     * ¿El estudiante ya tiene una inscripción en ese curso y periodo con alguno de esos estados?
+     * Se usa para impedir duplicados vigentes (ACTIVA/FINALIZADA) al crear una inscripción.
+     */
+    boolean existsByEstudianteIdAndCursoIdAndPeriodoAndEstadoIn(
+            Long estudianteId, Long cursoId, String periodo, Collection<EstadoInscripcion> estados);
 }

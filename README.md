@@ -17,7 +17,7 @@ Dentro del módulo, `Nota` e `HistorialEstado` sí tienen relaciones reales (`@M
 - PostgreSQL 16 (contenedor Docker)
 - Bean Validation (jakarta.validation)
 - springdoc-openapi 3.0.0 (Swagger UI, compatible con Spring Boot 4 / Framework 7)
-- Datafaker (carga inicial de datos ficticios)
+- Datos de demostración deterministas (sin dependencias externas)
 - Lombok
 
 ## 1. Requisitos
@@ -35,10 +35,14 @@ docker compose up -d
 Levanta PostgreSQL en `localhost:5434` (host) -> `5432` (contenedor), con:
 
 - DB: `inscripciones_db`
-- Usuario: `postgres`
-- Password: `postgres`
+- Usuario: `inscripciones_user`
+- Password: `inscripciones_pass_local` (valor de `.env`; `application.properties` espera
+  `inscripciones-pass`, así que en local se pasa
+  `SPRING_DATASOURCE_PASSWORD=inscripciones_pass_local`)
 
-El puerto host `5434` se eligió para no chocar con las bases de datos de los módulos Estudiantes (`5433`) ni Materias (`5432`) cuando los 4 procesos corren al tiempo en la misma máquina. Ya está configurado en `src/main/resources/application.yml`.
+El puerto host `5434` se eligió para no chocar con las bases de datos de los módulos
+Estudiantes (`5436`) ni Materias (`5433`) cuando los 4 procesos corren al tiempo en la
+misma máquina. Ya está configurado en `src/main/resources/application.properties`.
 
 ## 3. Ejecutar la aplicación
 
@@ -49,9 +53,14 @@ mvn spring-boot:run
 Al arrancar por primera vez:
 
 - Hibernate crea automáticamente las tablas (`spring.jpa.hibernate.ddl-auto=update`).
-- El `DataSeeder` puebla la base con 1000 inscripciones ficticias (con su respectiva nota inicial) solo si las tablas están vacías, no duplica en reinicios.
+- El `DataSeeder` reconstruye los datos de demostración cuando cambia la versión del
+  dataset (tabla `seed_control`): **524 inscripciones** (444 `FINALIZADA` de historial y
+  80 `ACTIVA` del periodo `2026-2`) para los 25 estudiantes. Cada estudiante solo cursa
+  materias de su propio programa y todas las notas son dos parciales del 50 % entre
+  `3.6` y `4.9`, por lo que el promedio siempre supera `3.5`. No duplica datos en
+  reinicios.
 
-La API queda disponible en `http://localhost:8083`.
+La API queda disponible en `http://localhost:8082`.
 
 Ajusta `server.port` en `application.yml` si tu equipo acordó otros puertos para Estudiantes / Materias / Gateway y hay choque.
 
@@ -74,6 +83,13 @@ Desde Swagger UI puedes usar "Try it out" para probar cada endpoint sin leer el 
 
 - `GET` (lista paginada) — `pageNumber`, `pageSize`, `sortBy`, `sortDirection`.
 - `GET /{id}`, `POST`, `PUT /{id}`, `PATCH /{id}/estado`, `DELETE /{id}`.
+
+> **Inscripción de estudiantes.** El alta self-service `POST /api/inscripciones/mias`
+> vive en el API Gateway: toma el `estudianteId` del JWT y, antes de reenviar la
+> petición a este módulo, valida que la materia del curso pertenezca al programa del
+> estudiante (responde `422 PROGRAMA_INCOMPATIBLE` si no). El `POST /api/inscripciones`
+> administrativo también pasa por esa validación en el Gateway. Así un estudiante no
+> puede terminar con materias de varias carreras aunque llame directamente a la API.
 
 `Nota` soporta CRUD completo (`GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}`) anidado bajo su inscripción.
 
